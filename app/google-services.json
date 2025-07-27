@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "117987622399",
+    "project_id": "prayasnow-app",
+    "storage_bucket": "prayasnow-app.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:117987622399:android:d144dccd08ee0833b33bca",
+        "android_client_info": {
+          "package_name": "com.example.prayasnow"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "117987622399-3n1k9kamrtan737h2ch8sdg1o9dfugi9.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyABVP902qaaHMcYFsh3E1cyXPUX4LXKQy4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "117987622399-3n1k9kamrtan737h2ch8sdg1o9dfugi9.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
