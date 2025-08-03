@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.prayasnow.repository.AuthRepository
 import com.google.firebase.auth.FirebaseUser
+import com.google.firebase.auth.FirebaseAuth
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -24,15 +25,30 @@ class AuthViewModel(
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
     
     init {
-        checkAuthState()
+        // Set up Firebase Auth state listener
+        FirebaseAuth.getInstance().addAuthStateListener { firebaseAuth ->
+            val currentUser = firebaseAuth.currentUser
+            _authState.value = _authState.value.copy(
+                user = currentUser,
+                isLoggedIn = currentUser != null
+            )
+            println("Firebase Auth State Changed: user=${currentUser?.email}, isLoggedIn=${currentUser != null}")
+        }
+        
+        // Try auto-login with stored credentials
+        tryAutoLogin()
     }
     
-    private fun checkAuthState() {
-        val currentUser = authRepository.getCurrentUser()
-        _authState.value = _authState.value.copy(
-            user = currentUser,
-            isLoggedIn = currentUser != null
-        )
+    private fun tryAutoLogin() {
+        viewModelScope.launch {
+            // Only try auto-login if not already logged in
+            if (!authState.value.isLoggedIn) {
+                val storedCredentials = authRepository.getStoredCredentials()
+                if (storedCredentials != null) {
+                    signInWithUsernameOrEmail(storedCredentials.emailOrUsername, storedCredentials.password)
+                }
+            }
+        }
     }
     
     fun signInWithEmailAndPassword(email: String, password: String) {
@@ -56,11 +72,32 @@ class AuthViewModel(
         }
     }
     
-    fun signUpWithEmailAndPassword(email: String, password: String) {
+    fun signInWithUsernameOrEmail(usernameOrEmail: String, password: String) {
         viewModelScope.launch {
             _authState.value = _authState.value.copy(isLoading = true, error = null)
             
-            authRepository.signUpWithEmailAndPassword(email, password)
+            authRepository.signInWithUsernameOrEmail(usernameOrEmail, password)
+                .onSuccess { user ->
+                    _authState.value = _authState.value.copy(
+                        isLoading = false,
+                        user = user,
+                        isLoggedIn = true
+                    )
+                }
+                .onFailure { exception ->
+                    _authState.value = _authState.value.copy(
+                        isLoading = false,
+                        error = exception.message
+                    )
+                }
+        }
+    }
+    
+    fun signUpWithEmailAndPassword(email: String, password: String, name: String, username: String) {
+        viewModelScope.launch {
+            _authState.value = _authState.value.copy(isLoading = true, error = null)
+            
+            authRepository.signUpWithEmailAndPassword(email, password, name, username)
                 .onSuccess { user ->
                     _authState.value = _authState.value.copy(
                         isLoading = false,
@@ -127,5 +164,28 @@ class AuthViewModel(
     
     fun clearError() {
         _authState.value = _authState.value.copy(error = null)
+    }
+    
+    suspend fun getStoredCredentials() = authRepository.getStoredCredentials()
+    
+    fun createTestUser() {
+        viewModelScope.launch {
+            _authState.value = _authState.value.copy(isLoading = true, error = null)
+            
+            authRepository.createTestUser()
+                .onSuccess { user ->
+                    _authState.value = _authState.value.copy(
+                        isLoading = false,
+                        user = user,
+                        isLoggedIn = true
+                    )
+                }
+                .onFailure { exception ->
+                    _authState.value = _authState.value.copy(
+                        isLoading = false,
+                        error = exception.message
+                    )
+                }
+        }
     }
 } 

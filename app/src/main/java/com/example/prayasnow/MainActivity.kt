@@ -11,6 +11,8 @@ import androidx.compose.ui.Modifier
 import com.example.prayasnow.di.AppModule
 import com.example.prayasnow.ui.navigation.AppNavigation
 import com.example.prayasnow.ui.theme.PrayasNowTheme
+import com.example.prayasnow.repository.QuizRepository
+import com.google.firebase.firestore.FirebaseFirestore
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -23,6 +25,7 @@ class MainActivity : ComponentActivity() {
         val database = AppModule.provideAppDatabase(this)
         val repository = AppModule.provideAuthRepository(auth, firestore, database)
         val authViewModel = AppModule.provideAuthViewModel(repository)
+        val quizRepository = QuizRepository(firestore, database)
         
         setContent {
             PrayasNowTheme {
@@ -30,7 +33,11 @@ class MainActivity : ComponentActivity() {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    AppNavigation(authViewModel = authViewModel)
+                    AppNavigation(
+                        authViewModel = authViewModel,
+                        quizRepository = quizRepository,
+                        firestore = firestore
+                    )
                 }
             }
         }

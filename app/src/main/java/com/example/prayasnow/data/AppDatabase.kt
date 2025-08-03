@@ -7,8 +7,8 @@ import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
 
 @Database(
-    entities = [User::class, Quiz::class, Test::class, BucketItem::class],
-    version = 2,
+    entities = [User::class, Quiz::class, Test::class, BucketItem::class, LoginCredentials::class],
+    version = 3,
     exportSchema = false
 )
 @TypeConverters(QuizOptionsConverter::class)
@@ -17,6 +17,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun quizDao(): QuizDao
     abstract fun testDao(): TestDao
     abstract fun bucketItemDao(): BucketItemDao
+    abstract fun loginCredentialsDao(): LoginCredentialsDao
     
     companion object {
         @Volatile

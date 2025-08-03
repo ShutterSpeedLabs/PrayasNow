@@ -28,22 +28,62 @@ import com.google.android.gms.auth.api.signin.GoogleSignIn
 import com.google.android.gms.auth.api.signin.GoogleSignInOptions
 import com.google.android.gms.common.api.ApiException
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.TextFieldValue
+import kotlinx.coroutines.launch
+import com.google.firebase.firestore.FirebaseFirestore
+import com.example.prayasnow.repository.QuizRepository
+import kotlinx.coroutines.tasks.await
 
 @Composable
 fun LoginScreen(
     authViewModel: AuthViewModel,
-    onNavigateToHome: () -> Unit
+    onNavigateToHome: () -> Unit,
+    quizRepository: QuizRepository,
+    firestore: FirebaseFirestore
 ) {
     val context = LocalContext.current
     val authState by authViewModel.authState.collectAsState()
-    
+    val coroutineScope = rememberCoroutineScope()
+
+    var name by remember { mutableStateOf("") }
+    var username by remember { mutableStateOf("") }
+    var usernameSuggestion by remember { mutableStateOf("") }
+    var usernameCheckInProgress by remember { mutableStateOf(false) }
+    var usernameAvailable by remember { mutableStateOf<Boolean?>(null) }
+    var emailOrUsername by remember { mutableStateOf("") }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var isSignUp by remember { mutableStateOf(false) }
     var showPassword by remember { mutableStateOf(false) }
     var showForgotPasswordDialog by remember { mutableStateOf(false) }
     var forgotPasswordEmail by remember { mutableStateOf("") }
-    
+
+    // Username check logic
+    fun checkUsernameAvailability(input: String) {
+        if (input.isBlank()) {
+            usernameAvailable = null
+            usernameSuggestion = ""
+            return
+        }
+        usernameCheckInProgress = true
+        coroutineScope.launch {
+            val snapshot = firestore.collection("users")
+                .whereEqualTo("username", input)
+                .get().await()
+            usernameAvailable = snapshot.isEmpty
+            if (!snapshot.isEmpty) {
+                // Suggest a username
+                val suggestion = "$input${(100..999).random()}"
+                usernameSuggestion = suggestion
+            } else {
+                usernameSuggestion = ""
+            }
+            usernameCheckInProgress = false
+        }
+    }
+
     // Google Sign-In launcher
     val gso = remember {
         GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -51,11 +91,11 @@ fun LoginScreen(
             .requestEmail()
             .build()
     }
-    
+
     val googleSignInClient = remember {
         GoogleSignIn.getClient(context, gso)
     }
-    
+
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
@@ -69,14 +109,32 @@ fun LoginScreen(
             // Handle Google Sign-In error
         }
     }
-    
+
     // Handle authentication state changes
     LaunchedEffect(authState.isLoggedIn) {
-        if (authState.isLoggedIn) {
+        if (authState.isLoggedIn && authState.user != null) {
             onNavigateToHome()
         }
     }
     
+    // Debug: Log auth state changes
+    LaunchedEffect(authState) {
+        println("Auth State: isLoggedIn=${authState.isLoggedIn}, user=${authState.user?.email}, isLoading=${authState.isLoading}")
+    }
+    
+    // Auto-fill stored credentials
+    LaunchedEffect(Unit) {
+        try {
+            val storedCredentials = authViewModel.getStoredCredentials()
+            if (storedCredentials != null && !isSignUp) {
+                emailOrUsername = storedCredentials.emailOrUsername
+                password = storedCredentials.password
+            }
+        } catch (e: Exception) {
+            // Handle any errors silently
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -92,22 +150,63 @@ fun LoginScreen(
             textAlign = TextAlign.Center,
             modifier = Modifier.padding(bottom = 32.dp)
         )
-        
-        // Email Field
-        OutlinedTextField(
-            value = email,
-            onValueChange = { email = it },
-            label = { Text("Email") },
-            leadingIcon = { Icon(Icons.Default.Email, contentDescription = "Email") },
-            keyboardOptions = KeyboardOptions(
-                keyboardType = KeyboardType.Email,
-                imeAction = ImeAction.Next
-            ),
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(bottom = 16.dp)
-        )
-        
+        if (isSignUp) {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Name") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            )
+            OutlinedTextField(
+                value = username,
+                onValueChange = {
+                    username = it
+                    checkUsernameAvailability(it)
+                },
+                label = { Text("Username") },
+                isError = usernameAvailable == false,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 8.dp)
+            )
+            if (usernameCheckInProgress) {
+                Text("Checking username...", style = MaterialTheme.typography.bodySmall)
+            } else if (usernameAvailable == false) {
+                Text("Username taken. Try: $usernameSuggestion", color = MaterialTheme.colorScheme.error)
+            } else if (usernameAvailable == true) {
+                Text("Username available!", color = MaterialTheme.colorScheme.primary)
+            }
+        }
+        if (!isSignUp) {
+            OutlinedTextField(
+                value = emailOrUsername,
+                onValueChange = { emailOrUsername = it },
+                label = { Text("Username or Email") },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Next
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            )
+        } else {
+            OutlinedTextField(
+                value = email,
+                onValueChange = { email = it },
+                label = { Text("Email") },
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Email,
+                    imeAction = ImeAction.Next
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp)
+            )
+        }
+
         // Password Field
         OutlinedTextField(
             value = password,
@@ -131,7 +230,7 @@ fun LoginScreen(
                 .fillMaxWidth()
                 .padding(bottom = 16.dp)
         )
-        
+
         // Forgot Password Link
         TextButton(
             onClick = { showForgotPasswordDialog = true },
@@ -139,17 +238,21 @@ fun LoginScreen(
         ) {
             Text("Forgot Password?")
         }
-        
+
         // Login/Sign Up Button
         Button(
             onClick = {
                 if (isSignUp) {
-                    authViewModel.signUpWithEmailAndPassword(email, password)
+                    authViewModel.signUpWithEmailAndPassword(email, password, name, username)
                 } else {
-                    authViewModel.signInWithEmailAndPassword(email, password)
+                    authViewModel.signInWithUsernameOrEmail(emailOrUsername, password)
                 }
             },
-            enabled = email.isNotEmpty() && password.isNotEmpty() && !authState.isLoading,
+            enabled = if (isSignUp) {
+                email.isNotEmpty() && password.isNotEmpty() && name.isNotEmpty() && username.isNotEmpty() && usernameAvailable == true
+            } else {
+                emailOrUsername.isNotEmpty() && password.isNotEmpty()
+            } && !authState.isLoading,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(vertical = 16.dp)
@@ -163,14 +266,14 @@ fun LoginScreen(
                 Text(if (isSignUp) "Sign Up" else "Login")
             }
         }
-        
+
         // Toggle between Login and Sign Up
         TextButton(
             onClick = { isSignUp = !isSignUp }
         ) {
             Text(if (isSignUp) "Already have an account? Login" else "Don't have an account? Sign Up")
         }
-        
+
         // Divider
         Row(
             modifier = Modifier
@@ -186,7 +289,7 @@ fun LoginScreen(
             )
             HorizontalDivider(modifier = Modifier.weight(1f))
         }
-        
+
         // Google Sign-In Button
         OutlinedButton(
             onClick = {
@@ -199,7 +302,7 @@ fun LoginScreen(
         ) {
             Text("Sign in with Google")
         }
-        
+
         // Error Message
         authState.error?.let { error ->
             Text(
@@ -210,8 +313,39 @@ fun LoginScreen(
                 modifier = Modifier.padding(top = 16.dp)
             )
         }
+        
+        // Test Button (for development only)
+        if (!isSignUp) {
+            TextButton(
+                onClick = {
+                    authViewModel.createTestUser()
+                    // Add sample quizzes for the test user
+                    coroutineScope.launch {
+                        try {
+                            quizRepository.insertSampleQuizzes("testuser")
+                        } catch (e: Exception) {
+                            // Handle error
+                        }
+                    }
+                },
+                modifier = Modifier.padding(top = 8.dp)
+            ) {
+                Text("Test Login (Create Test User)")
+            }
+            
+            // Simple test button to force navigation
+            TextButton(
+                onClick = {
+                    // Force navigation to profile for testing
+                    onNavigateToHome()
+                },
+                modifier = Modifier.padding(top = 4.dp)
+            ) {
+                Text("Force Navigate to Profile (Test)")
+            }
+        }
     }
-    
+
     // Forgot Password Dialog
     if (showForgotPasswordDialog) {
         AlertDialog(

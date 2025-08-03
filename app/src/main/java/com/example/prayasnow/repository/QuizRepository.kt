@@ -60,6 +60,55 @@ class QuizRepository(
                 question = "What is the green pigment in plants called?",
                 options = listOf("Chlorophyll", "Hemoglobin", "Melanin", "Keratin"),
                 answer = "Chlorophyll"
+            ),
+            Quiz(
+                userId = userId,
+                title = "NCERT Science: Food Chain",
+                question = "What is the primary source of energy in a food chain?",
+                options = listOf("Animals", "Plants", "Sun", "Water"),
+                answer = "Sun"
+            ),
+            Quiz(
+                userId = userId,
+                title = "NCERT Science: States of Matter",
+                question = "Which state of matter has a definite shape and volume?",
+                options = listOf("Solid", "Liquid", "Gas", "Plasma"),
+                answer = "Solid"
+            ),
+            Quiz(
+                userId = userId,
+                title = "NCERT Science: Electricity",
+                question = "What is the unit of electric current?",
+                options = listOf("Volt", "Ampere", "Watt", "Ohm"),
+                answer = "Ampere"
+            ),
+            Quiz(
+                userId = userId,
+                title = "NCERT Science: Light",
+                question = "What type of lens is used to correct nearsightedness?",
+                options = listOf("Convex", "Concave", "Bifocal", "Progressive"),
+                answer = "Concave"
+            ),
+            Quiz(
+                userId = userId,
+                title = "NCERT Science: Sound",
+                question = "What is the unit of frequency?",
+                options = listOf("Decibel", "Hertz", "Watt", "Meter"),
+                answer = "Hertz"
+            ),
+            Quiz(
+                userId = userId,
+                title = "NCERT Science: Force",
+                question = "What is the SI unit of force?",
+                options = listOf("Joule", "Newton", "Pascal", "Watt"),
+                answer = "Newton"
+            ),
+            Quiz(
+                userId = userId,
+                title = "NCERT Science: Energy",
+                question = "Which form of energy is stored in food?",
+                options = listOf("Kinetic", "Potential", "Chemical", "Nuclear"),
+                answer = "Chemical"
             )
         )
         sampleQuizzes.forEach { database.quizDao().insertQuiz(it) }

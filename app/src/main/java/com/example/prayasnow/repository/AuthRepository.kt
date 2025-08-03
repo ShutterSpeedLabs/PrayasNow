@@ -2,6 +2,7 @@ package com.example.prayasnow.repository
 
 import com.example.prayasnow.data.AppDatabase
 import com.example.prayasnow.data.User
+import com.example.prayasnow.data.LoginCredentials
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.auth.FirebaseUser
 import com.google.firebase.auth.GoogleAuthProvider
@@ -21,6 +22,8 @@ class AuthRepository(
             val result = auth.signInWithEmailAndPassword(email, password).await()
             result.user?.let { user ->
                 syncUserDataToLocal(user)
+                // Store credentials locally
+                storeCredentials(email, password)
             }
             Result.success(result.user!!)
         } catch (e: Exception) {
@@ -28,15 +31,65 @@ class AuthRepository(
         }
     }
     
-    suspend fun signUpWithEmailAndPassword(email: String, password: String): Result<FirebaseUser> {
+    suspend fun signUpWithEmailAndPassword(email: String, password: String, name: String, username: String): Result<FirebaseUser> {
         return try {
             val result = auth.createUserWithEmailAndPassword(email, password).await()
             result.user?.let { user ->
+                // Store user data in Firestore with name and username
+                val userData = mapOf(
+                    "uid" to user.uid,
+                    "email" to email,
+                    "name" to name,
+                    "username" to username,
+                    "displayName" to name,
+                    "timestamp" to System.currentTimeMillis()
+                )
+                firestore.collection("users").document(user.uid).set(userData).await()
+                
                 syncUserDataToLocal(user)
+                storeCredentials(email, password)
             }
             Result.success(result.user!!)
         } catch (e: Exception) {
             Result.failure(e)
+        }
+    }
+    
+    suspend fun signInWithUsernameOrEmail(usernameOrEmail: String, password: String): Result<FirebaseUser> {
+        return try {
+            val email = if (usernameOrEmail.contains("@")) {
+                usernameOrEmail
+            } else {
+                // Look up email from username in Firestore
+                val snapshot = firestore.collection("users")
+                    .whereEqualTo("username", usernameOrEmail)
+                    .get().await()
+                if (snapshot.isEmpty) {
+                    throw Exception("Username not found")
+                }
+                snapshot.documents.first().getString("email") ?: throw Exception("Email not found for username")
+            }
+            
+            signInWithEmailAndPassword(email, password)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+    
+    suspend fun getStoredCredentials(): LoginCredentials? {
+        return withContext(Dispatchers.IO) {
+            database.loginCredentialsDao().getCredentials()
+        }
+    }
+    
+    private suspend fun storeCredentials(emailOrUsername: String, password: String) {
+        withContext(Dispatchers.IO) {
+            val credentials = LoginCredentials(
+                emailOrUsername = emailOrUsername,
+                password = password,
+                rememberMe = true
+            )
+            database.loginCredentialsDao().insertCredentials(credentials)
         }
     }
     
@@ -65,6 +118,10 @@ class AuthRepository(
     suspend fun signOut() {
         auth.signOut()
         database.userDao().deleteAllUsers()
+        // Clear stored credentials on logout
+        withContext(Dispatchers.IO) {
+            database.loginCredentialsDao().clearCredentials()
+        }
     }
     
     fun getCurrentUser(): FirebaseUser? {
@@ -103,5 +160,44 @@ class AuthRepository(
             "photoUrl" to photoUrl,
             "lastSyncTime" to lastSyncTime
         )
+    }
+
+    suspend fun createTestUser(): Result<FirebaseUser> {
+        return try {
+            val testEmail = "test@prayasnow.com"
+            val testPassword = "test123456"
+            val testName = "Test User"
+            val testUsername = "testuser"
+            
+            val result = auth.createUserWithEmailAndPassword(testEmail, testPassword).await()
+            result.user?.let { user ->
+                // Store user data in Firestore
+                val userData = mapOf(
+                    "uid" to user.uid,
+                    "email" to testEmail,
+                    "name" to testName,
+                    "username" to testUsername,
+                    "displayName" to testName,
+                    "timestamp" to System.currentTimeMillis()
+                )
+                firestore.collection("users").document(user.uid).set(userData).await()
+                
+                syncUserDataToLocal(user)
+                storeCredentials(testEmail, testPassword)
+            }
+            Result.success(result.user!!)
+        } catch (e: Exception) {
+            // If user already exists, try to sign in
+            try {
+                val signInResult = auth.signInWithEmailAndPassword("test@prayasnow.com", "test123456").await()
+                signInResult.user?.let { user ->
+                    syncUserDataToLocal(user)
+                    storeCredentials("test@prayasnow.com", "test123456")
+                }
+                Result.success(signInResult.user!!)
+            } catch (signInException: Exception) {
+                Result.failure(signInException)
+            }
+        }
     }
 } 

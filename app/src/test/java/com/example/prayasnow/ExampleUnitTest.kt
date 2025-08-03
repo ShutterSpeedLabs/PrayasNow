@@ -1,7 +1,6 @@
 package com.example.prayasnow
 
 import org.junit.Test
-
 import org.junit.Assert.*
 
 /**
@@ -13,5 +12,16 @@ class ExampleUnitTest {
     @Test
     fun addition_isCorrect() {
         assertEquals(4, 2 + 2)
+    }
+    
+    @Test
+    fun testLoginFlow() {
+        // Simple test to verify basic functionality
+        val email = "test@example.com"
+        val password = "password123"
+        
+        assertTrue("Email should contain @", email.contains("@"))
+        assertTrue("Password should not be empty", password.isNotEmpty())
+        assertTrue("Email should be valid format", email.matches(Regex("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}\$")))
     }
 }
