@@ -3,6 +3,7 @@ package com.example.prayasnow.di
 import android.content.Context
 import com.example.prayasnow.data.AppDatabase
 import com.example.prayasnow.repository.AuthRepository
+import com.example.prayasnow.repository.ProgressRepository
 import com.example.prayasnow.viewmodel.AuthViewModel
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
@@ -27,6 +28,14 @@ object AppModule {
         database: AppDatabase
     ): AuthRepository {
         return AuthRepository(auth, firestore, database)
+    }
+    
+    fun provideProgressRepository(
+        database: AppDatabase,
+        firestore: FirebaseFirestore,
+        context: Context
+    ): ProgressRepository {
+        return ProgressRepository(database, firestore, context)
     }
     
     fun provideAuthViewModel(repository: AuthRepository): AuthViewModel {

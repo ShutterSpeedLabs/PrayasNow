@@ -25,18 +25,23 @@ class AuthViewModel(
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
     
     init {
-        // Set up Firebase Auth state listener
-        FirebaseAuth.getInstance().addAuthStateListener { firebaseAuth ->
-            val currentUser = firebaseAuth.currentUser
-            _authState.value = _authState.value.copy(
-                user = currentUser,
-                isLoggedIn = currentUser != null
-            )
-            println("Firebase Auth State Changed: user=${currentUser?.email}, isLoggedIn=${currentUser != null}")
+        try {
+            // Set up Firebase Auth state listener
+            FirebaseAuth.getInstance().addAuthStateListener { firebaseAuth ->
+                val currentUser = firebaseAuth.currentUser
+                _authState.value = _authState.value.copy(
+                    user = currentUser,
+                    isLoggedIn = currentUser != null
+                )
+                println("Firebase Auth State Changed: user=${currentUser?.email}, isLoggedIn=${currentUser != null}")
+            }
+            
+            // Try auto-login with stored credentials
+            tryAutoLogin()
+        } catch (e: Exception) {
+            println("Error in AuthViewModel init: ${e.message}")
+            // Continue without auto-login if there's an error
         }
-        
-        // Try auto-login with stored credentials
-        tryAutoLogin()
     }
     
     private fun tryAutoLogin() {

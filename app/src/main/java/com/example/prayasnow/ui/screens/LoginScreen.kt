@@ -131,7 +131,8 @@ fun LoginScreen(
                 password = storedCredentials.password
             }
         } catch (e: Exception) {
-            // Handle any errors silently
+            println("Error loading stored credentials: ${e.message}")
+            // Handle error silently
         }
     }
 
@@ -324,7 +325,7 @@ fun LoginScreen(
                         try {
                             quizRepository.insertSampleQuizzes("testuser")
                         } catch (e: Exception) {
-                            // Handle error
+                            println("Error adding sample quizzes: ${e.message}")
                         }
                     }
                 },
@@ -342,6 +343,25 @@ fun LoginScreen(
                 modifier = Modifier.padding(top = 4.dp)
             ) {
                 Text("Force Navigate to Profile (Test)")
+            }
+            
+            // Debug button to test basic functionality
+            TextButton(
+                onClick = {
+                    println("Debug: Testing basic functionality")
+                    // Test basic operations
+                    coroutineScope.launch {
+                        try {
+                            println("Debug: Testing Firebase connection")
+                            // Test if Firebase is working
+                        } catch (e: Exception) {
+                            println("Debug: Firebase error: ${e.message}")
+                        }
+                    }
+                },
+                modifier = Modifier.padding(top = 4.dp)
+            ) {
+                Text("Debug Test")
             }
         }
     }
