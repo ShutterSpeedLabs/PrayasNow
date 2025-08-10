@@ -22,4 +22,16 @@ interface UserDao {
     
     @Query("DELETE FROM users")
     suspend fun deleteAllUsers()
+    
+    @Query("SELECT * FROM users")
+    fun getAllUsers(): Flow<List<User>>
+    
+    @Query("SELECT * FROM users WHERE uid = :uid")
+    fun getUserFlow(uid: String): Flow<User?>
+    
+    @Query("SELECT * FROM users WHERE role = :role")
+    suspend fun getUsersByRole(role: String): List<User>
+    
+    @Query("SELECT * FROM users WHERE role = 'ADMIN' AND isActive = 1")
+    suspend fun getActiveAdmins(): List<User>
 } 

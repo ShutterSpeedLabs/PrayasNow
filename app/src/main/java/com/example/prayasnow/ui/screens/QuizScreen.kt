@@ -19,15 +19,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.prayasnow.repository.QuizRepository
 import com.example.prayasnow.viewmodel.AuthViewModel
+import com.example.prayasnow.data.SubjectInfo
 import kotlinx.coroutines.launch
-
-data class SubjectInfo(
-    val name: String,
-    val icon: ImageVector,
-    val color: Color,
-    val description: String,
-    val quizzes: List<String>
-)
 
 @Composable
 fun QuizScreen(

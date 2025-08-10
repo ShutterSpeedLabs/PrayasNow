@@ -18,6 +18,7 @@ import androidx.compose.ui.unit.dp
 import com.example.prayasnow.repository.QuizRepository
 import com.example.prayasnow.repository.ProgressRepository
 import com.example.prayasnow.viewmodel.AuthViewModel
+import com.example.prayasnow.data.SubjectInfo
 import kotlinx.coroutines.launch
 
 @Composable
@@ -32,8 +33,19 @@ fun SubjectQuizListScreen(
     val authState by authViewModel.authState.collectAsState()
     val coroutineScope = rememberCoroutineScope()
     
-    // Get subject info
-    val subjectInfo = getSubjectInfo(subject)
+    // Get subject info with dynamic quiz loading
+    var subjectInfo by remember { mutableStateOf(getSubjectInfoStatic(subject)) }
+    
+    // Load dynamic quiz titles
+    LaunchedEffect(subject, authState.user?.uid) {
+        authState.user?.uid?.let { userId ->
+            try {
+                subjectInfo = getSubjectInfo(subject, quizRepository, userId)
+            } catch (e: Exception) {
+                println("❌ Error loading subject info: ${e.message}")
+            }
+        }
+    }
     
     // Track quiz progress for each quiz
     var quizProgress by remember { mutableStateOf<Map<String, QuizProgressInfo>>(emptyMap()) }
@@ -262,36 +274,95 @@ fun QuizCard(
     }
 }
 
-// Helper function to get subject information
-fun getSubjectInfo(subject: String): SubjectInfo {
+// Helper function to get subject information with dynamic quiz loading
+suspend fun getSubjectInfo(subject: String, quizRepository: QuizRepository, userId: String): SubjectInfo {
+    val quizTitles = try {
+        quizRepository.getQuizTitlesForSubject(userId, subject)
+    } catch (e: Exception) {
+        println("❌ Error loading quiz titles: ${e.message}")
+        getDefaultQuizTitles(subject)
+    }
+    
     return when (subject) {
         "Science" -> SubjectInfo(
             name = "Science",
             icon = Icons.Default.Science,
             color = Color(0xFF4CAF50),
             description = "Physics, Chemistry, Biology",
-            quizzes = listOf("Physics Basics", "Chemistry Fundamentals", "Biology Basics")
+            quizzes = quizTitles.ifEmpty { getDefaultQuizTitles(subject) }
         )
         "History" -> SubjectInfo(
             name = "History",
             icon = Icons.Default.History,
             color = Color(0xFFFF9800),
             description = "Ancient, Medieval, Modern India",
-            quizzes = listOf("Ancient India", "Medieval India", "Modern India")
+            quizzes = quizTitles.ifEmpty { getDefaultQuizTitles(subject) }
         )
         "Geography" -> SubjectInfo(
             name = "Geography",
             icon = Icons.Default.Public,
             color = Color(0xFF2196F3),
             description = "Physical, Climate, Economic Geography",
-            quizzes = listOf("Physical Geography", "Climate and Weather", "Economic Geography")
+            quizzes = quizTitles.ifEmpty { getDefaultQuizTitles(subject) }
         )
         "Maths" -> SubjectInfo(
             name = "Maths",
             icon = Icons.Default.Calculate,
             color = Color(0xFF9C27B0),
             description = "Algebra, Geometry, Arithmetic",
-            quizzes = listOf("Algebra", "Geometry", "Arithmetic")
+            quizzes = quizTitles.ifEmpty { getDefaultQuizTitles(subject) }
+        )
+        else -> SubjectInfo(
+            name = subject,
+            icon = Icons.Default.Quiz,
+            color = Color(0xFF607D8B),
+            description = "Quiz topics",
+            quizzes = quizTitles.ifEmpty { emptyList() }
+        )
+    }
+}
+
+// Fallback quiz titles if Firebase data is not available
+private fun getDefaultQuizTitles(subject: String): List<String> {
+    return when (subject) {
+        "Science" -> listOf("Physics Basics", "Chemistry Fundamentals", "Biology Basics")
+        "History" -> listOf("Ancient India", "Medieval India", "Modern India")
+        "Geography" -> listOf("Physical Geography", "Climate and Weather", "Economic Geography")
+        "Maths" -> listOf("Algebra", "Geometry", "Arithmetic")
+        else -> emptyList()
+    }
+}
+
+// Static subject info for initial display
+fun getSubjectInfoStatic(subject: String): SubjectInfo {
+    return when (subject) {
+        "Science" -> SubjectInfo(
+            name = "Science",
+            icon = Icons.Default.Science,
+            color = Color(0xFF4CAF50),
+            description = "Physics, Chemistry, Biology",
+            quizzes = getDefaultQuizTitles(subject)
+        )
+        "History" -> SubjectInfo(
+            name = "History",
+            icon = Icons.Default.History,
+            color = Color(0xFFFF9800),
+            description = "Ancient, Medieval, Modern India",
+            quizzes = getDefaultQuizTitles(subject)
+        )
+        "Geography" -> SubjectInfo(
+            name = "Geography",
+            icon = Icons.Default.Public,
+            color = Color(0xFF2196F3),
+            description = "Physical, Climate, Economic Geography",
+            quizzes = getDefaultQuizTitles(subject)
+        )
+        "Maths" -> SubjectInfo(
+            name = "Maths",
+            icon = Icons.Default.Calculate,
+            color = Color(0xFF9C27B0),
+            description = "Algebra, Geometry, Arithmetic",
+            quizzes = getDefaultQuizTitles(subject)
         )
         else -> SubjectInfo(
             name = subject,

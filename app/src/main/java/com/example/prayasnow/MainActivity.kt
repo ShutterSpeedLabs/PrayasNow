@@ -37,12 +37,22 @@ class MainActivity : ComponentActivity() {
             
             Log.d("MainActivity", "All dependencies initialized successfully")
             
-            // Start background sync for unsynced progress
+            // Start background sync for unsynced progress and quiz sync
             lifecycleScope.launch {
                 try {
+                    // Sync quiz progress
                     progressRepository.syncAllUnsyncedProgress()
+                    
+                    // Check if quiz sync is needed and perform it
+                    if (quizRepository.isSyncNeeded()) {
+                        Log.d("MainActivity", "Starting quiz sync from Firebase...")
+                        val syncedQuizzes = quizRepository.syncQuizzesFromFirebase("")
+                        Log.d("MainActivity", "Quiz sync completed. Synced ${syncedQuizzes.size} quizzes")
+                    } else {
+                        Log.d("MainActivity", "Quiz sync not needed - recent sync found")
+                    }
                 } catch (e: Exception) {
-                    Log.e("MainActivity", "Error syncing unsynced progress: ${e.message}")
+                    Log.e("MainActivity", "Error during background sync: ${e.message}")
                 }
             }
             

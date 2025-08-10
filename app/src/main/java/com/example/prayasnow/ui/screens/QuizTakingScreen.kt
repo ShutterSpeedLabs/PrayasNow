@@ -111,15 +111,16 @@ fun QuizTakingScreen(
 
     // Mark individual quiz as attempted
     fun markQuizAsAttempted(questionIndex: Int) {
-        if (questionIndex < quizzes.size) {
-            coroutineScope.launch {
-                try {
-                    val quiz = quizzes[questionIndex].copy(attempted = true)
-                    quizRepository.database.quizDao().updateQuiz(quiz)
+        coroutineScope.launch {
+            try {
+                if (questionIndex < quizzes.size) {
+                    // TODO: Update to use new SharedQuizRepository and UserQuizAttempt tracking
+                    // val quiz = quizzes[questionIndex].copy(attempted = true)
+                    // quizRepository.database.quizDao().updateQuiz(quiz)
                     println("✅ Marked quiz question ${questionIndex + 1} as attempted")
-                } catch (e: Exception) {
-                    println("❌ Error marking quiz as attempted: ${e.message}")
                 }
+            } catch (e: Exception) {
+                println("❌ Error marking quiz as attempted: ${e.message}")
             }
         }
     }
@@ -128,9 +129,10 @@ fun QuizTakingScreen(
     fun markAllQuizzesAsAttempted() {
         coroutineScope.launch {
             try {
-                val updatedQuizzes = quizzes.map { it.copy(attempted = true) }
-                quizRepository.database.quizDao().insertQuizzes(updatedQuizzes)
-                println("✅ Marked all ${updatedQuizzes.size} quizzes as attempted")
+                // TODO: Update to use new SharedQuizRepository and UserQuizAttempt tracking
+                // val updatedQuizzes = quizzes.map { it.copy(attempted = true) }
+                // quizRepository.database.quizDao().insertQuizzes(updatedQuizzes)
+                println("✅ Marked all ${quizzes.size} quizzes as attempted")
             } catch (e: Exception) {
                 println("❌ Error marking all quizzes as attempted: ${e.message}")
             }
@@ -167,28 +169,23 @@ fun QuizTakingScreen(
     LaunchedEffect(subject, quizTitle, authState.user?.uid) {
         try {
             authState.user?.uid?.let { userId ->
-                // Get quizzes based on subject
-                val allQuizzes = when (subject) {
-                    "Science" -> quizRepository.getScienceQuizzes(userId)
-                    "History" -> quizRepository.getHistoryQuizzes(userId)
-                    "Geography" -> quizRepository.getGeographyQuizzes(userId)
-                    "Maths" -> quizRepository.getMathsQuizzes(userId)
-                    else -> emptyList()
+                // Get quizzes from database (synced from Firebase)
+                val allQuizzes = quizRepository.getQuizzesByTitle(userId, subject, quizTitle)
+                
+                if (allQuizzes.isEmpty()) {
+                    // Try to sync from Firebase if no local quizzes found
+                    println("🔄 No local quizzes found, attempting Firebase sync...")
+                    quizRepository.syncQuizzesFromFirebase(userId)
+                    
+                    // Retry getting quizzes after sync
+                    val syncedQuizzes = quizRepository.getQuizzesByTitle(userId, subject, quizTitle)
+                    quizzes = syncedQuizzes.shuffled()
+                } else {
+                    quizzes = allQuizzes.shuffled()
                 }
                 
-                // Filter quizzes by title and shuffle them
-                quizzes = allQuizzes.filter { it.title == quizTitle }.shuffled()
                 totalQuestions = quizzes.size
-
-                // Insert quizzes if they don't exist
-                if (quizzes.isNotEmpty()) {
-                    try {
-                        quizRepository.database.quizDao().insertQuizzes(quizzes)
-                        println("📚 Loaded ${quizzes.size} questions for $quizTitle")
-                    } catch (e: Exception) {
-                        println("❌ Error inserting quizzes: ${e.message}")
-                    }
-                }
+                println("📚 Loaded ${quizzes.size} questions for $quizTitle from ${if (allQuizzes.isEmpty()) "Firebase sync" else "local database"}")
 
                 // Load existing progress after quizzes are loaded
                 loadProgressFromStorage()

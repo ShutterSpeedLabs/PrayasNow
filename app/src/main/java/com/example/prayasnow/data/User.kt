@@ -9,5 +9,12 @@ data class User(
     val email: String,
     val displayName: String?,
     val photoUrl: String?,
+    val role: String = "USER", // USER, ADMIN, MODERATOR
+    val isActive: Boolean = true,
+    val createdAt: Long = System.currentTimeMillis(),
     val lastSyncTime: Long = System.currentTimeMillis()
-) 
+) {
+    fun isAdmin(): Boolean = role == "ADMIN"
+    fun isModerator(): Boolean = role == "MODERATOR" || role == "ADMIN"
+    fun hasAdminAccess(): Boolean = isAdmin() && isActive
+} 
